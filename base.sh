@@ -1,18 +1,20 @@
-RED='\e[91m'
-GRN='\e[92m'
-YEL='\e[93m'
-BLU='\e[94m'
-CYN='\e[96m'
-WHT='\e[97m'
-NONE='\e0m'
+readonly RED='\e[91m'
+readonly GRN='\e[92m'
+readonly YEL='\e[93m'
+readonly BLU='\e[94m'
+readonly CYN='\e[96m'
+readonly WHT='\e[97m'
+readonly NONE='\e[0m'
 
 QUIT_HOOK=()
 
 clean_quit() {
+    debug "entered clean_quit()"
     for hook in "${QUIT_HOOK[@]}"; do
         debug " - running $hook()"
         $hook
     done
+    exit $1
 }
 
 debug() {
@@ -26,7 +28,7 @@ safety_message() {
 }
 
 errr() {
-    echo -e "$RED$*$NONE" >&2
+    echo -e "${RED}$*${NONE}" >&2
     clean_quit 1
 }
 
