@@ -8,45 +8,62 @@ source ./common/base.sh
 ssh="ssh"
 
 rexec() {
-    local user=root
-    local host=$1 # default to bare host - user and port are optional
     local port=22
+    local user=root
+    declare host code refs
 
-    # Host may be plain host or ip, user@host, host:port
-    # or the trifecta: user@host:port
+    while ((${#@})); do
+        case "$1" in
+            -u|--user)
+                user=$2
+                shift 2
+            ;;
+            -h|--host)
+                host=$2
+                shift 2
+            ;;
+            -p|--port)
+                port=$2
+                shift 2
+            ;;
+            -f|--file)
+                if [[ -f $2 ]]; then
+                    # code=$(cat $2)
+                    code=$(sed "s/\r\n$/\n$/" $2) # This is needed for Windows
+                else
+                    error "file not found: $2"
+                    return 2
+                fi
+                shift 2
+            ;;
+            -e|--expression)
+                code=$2
+                shift 2
+            ;;
+            *)
+                refs=("$@")
+                shift $#
+            ;;
+        esac
+    done
 
-    # user may precede @ 
-    [[ $1 =~ ^(.*)@ ]] && {
-        user=${BASH_REMATCH[1]}
-    }
-
-    # host may follow an @ or precede a :
-    [[ $1 =~ @([^@:]*) ]] && {
-        host=${BASH_REMATCH[1]}
-    }
-    [[ $1 =~ ([^@:]*): ]] && {
-        host=${BASH_REMATCH[1]}
-    }
-
-    # port may follow a :
-    [[ $1 =~ :(.*)$ ]] && {
-        port=${BASH_REMATCH[1]};
-    }
-
-    local code=$2 # single-quoted code to be executed remotely...
-    if [[ -f $2 ]]; then # ...or a filename
-        # code=$(cat $code) # This can be used when local machine is Linux
-        code=$(sed "s/\r\n$/\n$/" $code) # This is needed for Windows
+    # require host and code
+    if [[ ! $host ]]; then
+        error "must provide remote host or IP address (-h|--host)"
+        return 2
+    elif [[ ! $code ]]; then
+        error "must provide file (-f|--file) or expression (-e|--expression) for remote execution"
+        return 2
+    else
+        debug "host: $host, user: $user, port: $port, refs: $refs[@]"
+        debug "code:\n$code"
     fi
 
-    shift 2 # shift off the first two args, remaining are namerefs
-
     {
-        # auto-declare useful base.sh variables and functions
-        declare -p RED GRN YEL BLU CYN WHT NONE loglevel DEBUG INFO WARN ERROR clean_hooks
-        declare -f debug info warn err errr clean_quit
-        # declare the remaining arguments as function or variable refs
-        for ref in "$@"; do
+        declare -p RED GRN YEL BLU CYN WHT C_RED NONE
+        declare -p loglevel DEBUG INFO WARN ERROR CRITICAL
+        declare -f debug info warn error critical
+        for ref in ${refs[@]}; do
             declare -f $ref || declare -p $ref
         done
         echo "$code"
